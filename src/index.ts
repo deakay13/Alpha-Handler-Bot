@@ -66,9 +66,8 @@ client.on("messageCreate", async (message: Message) => {
 });
 
 client.on(Events.GuildMemberAdd, (member) => {
-  const channel = member.guild.channels.cache.find(
-    (ch) => ch.name === "welcome" && ch.isTextBased()
-  );
+  const WelcomeChannel = process.env.WelcomeChannel;
+  const channel = member.guild.channels.cache.get(WelcomeChannel || "");
 
   if (channel && channel.isTextBased()) {
     (channel as TextChannel).send(
