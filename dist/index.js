@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Message } from "discord.js";
+import { Client, GatewayIntentBits, Message, Events, TextChannel } from "discord.js";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
     ],
@@ -45,8 +46,15 @@ client.on("messageCreate", async (message) => {
         }
     }
 });
+client.on(Events.GuildMemberAdd, (member) => {
+    const WelcomeChannel = process.env.WelcomeChannel;
+    const channel = member.guild.channels.cache.get(WelcomeChannel || "");
+    if (channel && channel.isTextBased()) {
+        channel.send(`👋 Chào mừng ${member.user.username} đến với server **${member.guild.name}**!`);
+    }
+});
 // ✅ Khi bot sẵn sàng
-client.once("ready", () => {
+client.once("clientReady", () => {
     console.log(`✅ Bot đã đăng nhập với tên ${client.user?.tag}`);
 });
 // ✅ Đăng nhập bot bằng token từ .env
