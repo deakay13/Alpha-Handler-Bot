@@ -1,5 +1,5 @@
 import { Message } from "discord.js";
-export const name = "Help";
+export const name = "help";
 export async function execute(message, args) {
     const embed = {
         color: 0x00ffcc,
