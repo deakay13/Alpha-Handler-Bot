@@ -1,5 +1,5 @@
-import { Message } from "discord.js";
+import { Message, ButtonInteraction } from "discord.js";
 export const name = "ping";
-export async function execute(message, args) {
-    await message.reply("🏓 Pong!");
+export async function execute(source, args) {
+    await source.reply("🏓 Pong!");
 }

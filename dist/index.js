@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Message, Events, TextChannel, SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, } from "discord.js";
+import { Client, GatewayIntentBits, Message, Events, TextChannel, ButtonInteraction, } from "discord.js";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
@@ -18,15 +18,25 @@ const client = new Client({
 });
 const prefix = "!";
 // ✅ Tải các lệnh từ thư mục commands
-const commands = new Map();
+const prefixCommands = new Map();
+const buttonCommands = new Map();
 const commandFiles = fs
     .readdirSync(path.join(__dirname, "commands"))
     .filter((file) => file.endsWith(".ts") || file.endsWith(".js"));
 for (const file of commandFiles) {
-    const { name, execute } = await import(`./commands/${file}`);
-    commands.set(name, { name, execute });
+    const command = await import(`./commands/${file}`);
+    if ("name" in command && "execute" in command) {
+        if (command.execute.length === 2) {
+            // Lệnh prefix: (message, args)
+            prefixCommands.set(command.name.toLowerCase(), command);
+        }
+        else {
+            // Lệnh nút: (interaction)
+            buttonCommands.set(command.name, command);
+        }
+    }
 }
-// ✅ Xử lý tin nhắn và thực hiện lệnh
+// ✅ Xử lý tin nhắn và thực hiện lệnh prefix
 client.on("messageCreate", async (message) => {
     if (message.author.bot || !message.content.startsWith(prefix))
         return;
@@ -35,7 +45,7 @@ client.on("messageCreate", async (message) => {
     if (!rawCommand)
         return;
     const commandName = rawCommand.toLowerCase();
-    const command = commands.get(commandName);
+    const command = prefixCommands.get(commandName);
     if (command) {
         try {
             await command.execute(message, args);
@@ -46,6 +56,25 @@ client.on("messageCreate", async (message) => {
         }
     }
 });
+// ✅ Xử lý tương tác nút bấm
+client.on("interactionCreate", async (interaction) => {
+    if (interaction.isButton()) {
+        const command = buttonCommands.get(interaction.customId);
+        if (command) {
+            try {
+                await command.execute(interaction);
+            }
+            catch (err) {
+                console.error(err);
+                await interaction.reply({
+                    content: "❌ Có lỗi xảy ra khi xử lý nút.",
+                    ephemeral: true,
+                });
+            }
+        }
+    }
+});
+// ✅ Chào mừng thành viên mới
 client.on(Events.GuildMemberAdd, (member) => {
     const WelcomeChannel = process.env.WelcomeChannel;
     const channel = member.guild.channels.cache.get(WelcomeChannel || "");
@@ -53,24 +82,8 @@ client.on(Events.GuildMemberAdd, (member) => {
         channel.send(`👋 Chào mừng ${member.user.username} đến với server **${member.guild.name}**!`);
     }
 });
-export const data = new SlashCommandBuilder()
-    .setName("info")
-    .setDescription("Hiển thị thông tin người dùng");
-export async function execute(interaction) {
-    const user = interaction.user;
-    const embed = new EmbedBuilder()
-        .setColor(0x00ffcc)
-        .setTitle(`Thông tin của ${user.username}`)
-        .setThumbnail(user.displayAvatarURL())
-        .addFields({ name: "🆔 ID", value: user.id, inline: true }, {
-        name: "📅 Tạo tài khoản",
-        value: `<t:${Math.floor(user.createdTimestamp / 1000)}:F>`,
-        inline: true,
-    });
-    await interaction.reply({ embeds: [embed] });
-}
 // ✅ Khi bot sẵn sàng
-client.once("clientReady", () => {
+client.once("ready", () => {
     console.log(`✅ Bot đã đăng nhập với tên ${client.user?.tag}`);
 });
 // ✅ Đăng nhập bot bằng token từ .env

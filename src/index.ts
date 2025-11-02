@@ -3,7 +3,8 @@ import {
   GatewayIntentBits,
   Message,
   Events,
-  TextChannel
+  TextChannel,
+  ButtonInteraction,
 } from "discord.js";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -28,24 +29,40 @@ const client = new Client({
 
 const prefix = "!";
 
-// ✅ Interface cho lệnh
-interface Command {
+// ✅ Interface cho lệnh prefix
+interface PrefixCommand {
   name: string;
   execute: (message: Message, args: string[]) => Promise<void>;
 }
 
+// ✅ Interface cho lệnh nút bấm
+interface ButtonCommand {
+  name: string;
+  execute: (interaction: ButtonInteraction) => Promise<void>;
+}
+
 // ✅ Tải các lệnh từ thư mục commands
-const commands = new Map<string, Command>();
+const prefixCommands = new Map<string, PrefixCommand>();
+const buttonCommands = new Map<string, ButtonCommand>();
+
 const commandFiles = fs
   .readdirSync(path.join(__dirname, "commands"))
   .filter((file) => file.endsWith(".ts") || file.endsWith(".js"));
 
 for (const file of commandFiles) {
-  const { name, execute } = await import(`./commands/${file}`);
-  commands.set(name, { name, execute });
+  const command = await import(`./commands/${file}`);
+  if ("name" in command && "execute" in command) {
+    if (command.execute.length === 2) {
+      // Lệnh prefix: (message, args)
+      prefixCommands.set(command.name.toLowerCase(), command);
+    } else {
+      // Lệnh nút: (interaction)
+      buttonCommands.set(command.name, command);
+    }
+  }
 }
 
-// ✅ Xử lý tin nhắn và thực hiện lệnh
+// ✅ Xử lý tin nhắn và thực hiện lệnh prefix
 client.on("messageCreate", async (message: Message) => {
   if (message.author.bot || !message.content.startsWith(prefix)) return;
 
@@ -54,7 +71,7 @@ client.on("messageCreate", async (message: Message) => {
   if (!rawCommand) return;
 
   const commandName = rawCommand.toLowerCase();
-  const command = commands.get(commandName);
+  const command = prefixCommands.get(commandName);
   if (command) {
     try {
       await command.execute(message, args);
@@ -65,6 +82,25 @@ client.on("messageCreate", async (message: Message) => {
   }
 });
 
+// ✅ Xử lý tương tác nút bấm
+client.on("interactionCreate", async (interaction) => {
+  if (interaction.isButton()) {
+    const command = buttonCommands.get(interaction.customId);
+    if (command) {
+      try {
+        await command.execute(interaction);
+      } catch (err) {
+        console.error(err);
+        await interaction.reply({
+          content: "❌ Có lỗi xảy ra khi xử lý nút.",
+          ephemeral: true,
+        });
+      }
+    }
+  }
+});
+
+// ✅ Chào mừng thành viên mới
 client.on(Events.GuildMemberAdd, (member) => {
   const WelcomeChannel = process.env.WelcomeChannel;
   const channel = member.guild.channels.cache.get(WelcomeChannel || "");
@@ -77,7 +113,7 @@ client.on(Events.GuildMemberAdd, (member) => {
 });
 
 // ✅ Khi bot sẵn sàng
-client.once("clientReady", () => {
+client.once("ready", () => {
   console.log(`✅ Bot đã đăng nhập với tên ${client.user?.tag}`);
 });
 
