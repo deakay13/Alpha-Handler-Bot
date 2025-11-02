@@ -1,4 +1,4 @@
-import { Message } from "discord.js";
+import { Message, } from "discord.js";
 export const name = "info";
 export async function execute(message, args) {
     const user = message.author;

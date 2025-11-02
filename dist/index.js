@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Message, Events, TextChannel } from "discord.js";
+import { Client, GatewayIntentBits, Message, Events, TextChannel, SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, } from "discord.js";
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
@@ -53,6 +53,22 @@ client.on(Events.GuildMemberAdd, (member) => {
         channel.send(`👋 Chào mừng ${member.user.username} đến với server **${member.guild.name}**!`);
     }
 });
+export const data = new SlashCommandBuilder()
+    .setName("info")
+    .setDescription("Hiển thị thông tin người dùng");
+export async function execute(interaction) {
+    const user = interaction.user;
+    const embed = new EmbedBuilder()
+        .setColor(0x00ffcc)
+        .setTitle(`Thông tin của ${user.username}`)
+        .setThumbnail(user.displayAvatarURL())
+        .addFields({ name: "🆔 ID", value: user.id, inline: true }, {
+        name: "📅 Tạo tài khoản",
+        value: `<t:${Math.floor(user.createdTimestamp / 1000)}:F>`,
+        inline: true,
+    });
+    await interaction.reply({ embeds: [embed] });
+}
 // ✅ Khi bot sẵn sàng
 client.once("clientReady", () => {
     console.log(`✅ Bot đã đăng nhập với tên ${client.user?.tag}`);
